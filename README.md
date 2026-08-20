@@ -46,7 +46,7 @@ Flask API that serves it, and a React + D3.js frontend that visualizes it.
 
 ## The dashboard
 
-![Full dashboard](docs/screenshots/dashboard-overview.png)
+![Full dashboard](docs/dashboard-screenshots/dashboard-overview.png)
 
 All five views are visible at once, driven by one shared toolbar — pick a date range or
 jump straight to a cataloged storm (like the famous October 2003 "Halloween storms"), and
@@ -108,7 +108,7 @@ are stressed by different mechanisms, and the scoring reflects that.)*
 
 ## The storm risk forecaster (machine learning)
 
-![ML tab](docs/screenshots/ml-storm-forecaster.png)
+![ML tab](docs/dashboard-screenshots/ml-storm-forecaster.png)
 
 Everything above is about understanding storms that *already happened*. This part looks
 forward: **given what the solar wind is doing right now, how likely is a storm in the
@@ -267,7 +267,7 @@ BigData-Project/
 │   │                              MLPrediction, MenuBar)
 │   ├── hooks/                    shared data-fetching hooks
 │   └── utils/                    filtering helpers, the Shue magnetopause model
-├── docs/                       README images (screenshots + report figures)
+├── docs/                       README images (dashboard-screenshots + report figures)
 └── CS661_ProjectReport_Group21.pdf   full academic report (architecture, physics
                                         background, and the ML methodology in detail)
 ```
