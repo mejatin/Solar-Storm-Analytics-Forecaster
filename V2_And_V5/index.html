@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OMNI Solar Wind &amp; Space Weather Analytics</title>
+
+<!-- Shared resources — loaded once here, not duplicated inside v2.html / v5.html -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+
+<style>
+  :root{
+    --bg:#0A0C10;
+    --panel:#12151C;
+    --panel-2:#0E1117;
+    --hairline:#252B3A;
+    --text:#E7EAF0;
+    --text-dim:#7C8496;
+    --text-faint:#4B5265;
+    --fast:#43D9C8;
+    --danger:#FF5B54;
+    --mono:'JetBrains Mono', monospace;
+    --sans:'Space Grotesk', sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:var(--sans);}
+
+  #app{display:flex;min-height:100vh;}
+
+  #sidebar{
+    width:230px; flex:0 0 auto;
+    background:var(--panel-2);
+    border-right:1px solid var(--hairline);
+    padding:18px 0;
+    display:flex; flex-direction:column; gap:2px;
+    position:sticky; top:0; align-self:flex-start; height:100vh;
+  }
+  .app-title{
+    font-family:var(--mono); font-size:10.5px; letter-spacing:0.09em; text-transform:uppercase;
+    color:var(--text-faint); padding:0 20px 14px; border-bottom:1px solid var(--hairline); margin-bottom:10px;
+  }
+  .app-title b{ display:block; color:var(--text-dim); font-size:12px; letter-spacing:0.04em; margin-top:3px; }
+
+  .nav-item{
+    display:flex; align-items:center; gap:11px;
+    padding:13px 20px;
+    cursor:pointer;
+    font-family:var(--mono); font-size:12px; letter-spacing:0.02em;
+    color:var(--text-dim);
+    border-left:3px solid transparent;
+    transition:all 150ms ease;
+  }
+  .nav-item:hover{ color:var(--text); background:rgba(255,255,255,0.03); }
+  .nav-item.active{ color:var(--fast); border-left-color:var(--fast); background:rgba(67,217,200,0.07); }
+  .nav-icon{ font-size:15px; width:18px; text-align:center; flex:0 0 auto; }
+  .nav-label{ display:flex; flex-direction:column; gap:2px; }
+  .nav-sub{ font-size:9px; color:var(--text-faint); letter-spacing:0.03em; text-transform:none; }
+  .nav-item.active .nav-sub{ color:rgba(67,217,200,0.65); }
+
+  .sidebar-footer{
+    margin-top:auto; padding:14px 20px 4px;
+    font-family:var(--mono); font-size:9px; color:var(--text-faint);
+    border-top:1px solid var(--hairline);
+  }
+
+  #main{ flex:1; min-width:0; padding:22px; }
+  .tab-panel{ display:none; }
+  .tab-panel.active{ display:block; }
+
+  .tab-loading{
+    font-family:var(--mono); font-size:12px; color:var(--text-faint);
+    padding:40px; text-align:center;
+  }
+
+  @media (max-width: 860px){
+    #app{ flex-direction:column; }
+    #sidebar{ width:100%; height:auto; position:relative; flex-direction:row; overflow-x:auto; border-right:none; border-bottom:1px solid var(--hairline); padding:10px 0; }
+    .app-title{ display:none; }
+    .nav-item{ border-left:none; border-bottom:3px solid transparent; white-space:nowrap; padding:10px 16px; }
+    .nav-item.active{ border-bottom-color:var(--fast); }
+    .sidebar-footer{ display:none; }
+    #main{ padding:14px; }
+  }
+</style>
+</head>
+<body>
+
+<div id="app">
+  <div id="sidebar">
+    <div class="app-title">Solar Wind &amp;<b>Space Weather Analytics</b></div>
+
+    <div class="nav-item active" data-tab="v2">
+      <span class="nav-icon">&#9671;</span>
+      <span class="nav-label">V2 &middot; Phase Space<span class="nav-sub">scatter &middot; lasso &middot; clusters</span></span>
+    </div>
+
+    <div class="nav-item" data-tab="v5">
+      <span class="nav-icon">&#9737;</span>
+      <span class="nav-label">V5 &middot; Orbital Sim<span class="nav-sub">storms &middot; magnetosphere</span></span>
+    </div>
+
+    <div class="sidebar-footer">real OMNI data &middot; 1995&ndash;2025</div>
+  </div>
+
+  <div id="main">
+    <div class="tab-panel active" id="tab-v2">
+      <div class="tab-loading">loading v2.html &hellip;</div>
+    </div>
+    <div class="tab-panel" id="tab-v5">
+      <div class="tab-loading">loading v5.html &hellip;</div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Fetches a feature fragment (style + markup + <script>) and injects it
+  // into a tab panel. innerHTML-inserted <script> tags are inert by spec,
+  // so each one is manually rebuilt and re-appended to force execution.
+  async function loadFragment(url, containerId){
+    const container = document.getElementById(containerId);
+    let html;
+    try {
+      const res = await fetch(url);
+      if(!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+      html = await res.text();
+    } catch(err){
+      console.error(`Failed to load ${url}:`, err);
+      container.innerHTML = `<div class="tab-loading" style="color:var(--danger);">could not load ${url} — make sure it's in the same folder as index.html and you're serving over http(s), not file://</div>`;
+      return;
+    }
+    container.innerHTML = html;
+    container.querySelectorAll('script').forEach(oldScript=>{
+      const newScript = document.createElement('script');
+      if(oldScript.src){
+        newScript.src = oldScript.src;
+      } else {
+        newScript.textContent = oldScript.textContent;
+      }
+      oldScript.replaceWith(newScript);
+    });
+  }
+
+  Promise.all([
+    loadFragment('v2.html', 'tab-v2'),
+    loadFragment('v5.html', 'tab-v5')
+  ]);
+
+  // ---- tab switching ----
+  document.querySelectorAll('.nav-item').forEach(function(item){
+    item.addEventListener('click', function(){
+      document.querySelectorAll('.nav-item').forEach(function(i){ i.classList.remove('active'); });
+      document.querySelectorAll('.tab-panel').forEach(function(p){ p.classList.remove('active'); });
+      item.classList.add('active');
+      document.getElementById('tab-' + item.dataset.tab).classList.add('active');
+      // V5's canvas uses a ResizeObserver that self-corrects once visible,
+      // but this nudges anything relying on a plain window resize listener.
+      window.dispatchEvent(new Event('resize'));
+    });
+  });
+</script>
+
+</body>
+</html>

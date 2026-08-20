@@ -1,0 +1,56 @@
+@import "tailwindcss";
+
+/* Shared "space" theme — one palette + font pair used by every panel (V1-V5)
+   and the app shell, so they read as one system instead of five different
+   dashboards glued together. Values match what V5's simulator originated
+   with; the rest of the app adopts them here rather than Tailwind's default
+   slate palette, which is a visibly different (bluer, lighter) dark navy. */
+@theme {
+  --color-space-bg:       #0A0C10;
+  --color-space-panel:    #12151C;
+  --color-space-panel-2:  #0E1117;
+  --color-space-hairline: #252B3A;
+  --color-space-grid:     #1E2330;
+  --color-space-text:     #E7EAF0;
+  --color-space-dim:      #7C8496;
+  --color-space-faint:    #4B5265;
+  --color-space-violet:   #8B5CF6;
+  --color-space-calm:     #4F8CFF;
+  --color-space-danger:   #FF5B54;
+  --color-space-fast:     #43D9C8;
+  --color-space-slow:     #E8A33D;
+  --color-space-aurora:   #5CF2A0;
+  --color-space-cme:      #C65FE8;
+
+  --font-sans: 'Space Grotesk', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', monospace;
+}
+
+/* Tell the browser this is a dark UI so NATIVE form widgets (the <select>
+   dropdown arrows, date-picker icons, scrollbars) render in their dark
+   variants — without this, Windows draws dark arrows on our dark panels
+   and they disappear entirely. */
+:root {
+  color-scheme: dark;
+}
+
+body {
+  background: var(--color-space-bg);
+  font-family: var(--font-sans);
+}
+
+/* The dashboard is a fixed, non-scrolling single screen — guard against any
+   stray sub-pixel overflow (grid rounding, canvas resize timing) ever
+   producing a page-level horizontal scrollbar. */
+html, body {
+  overflow-x: hidden;
+}
+
+/* Override the default root constraints from Vite template */
+#root {
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+  text-align: left;
+  border: none;
+}

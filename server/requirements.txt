@@ -1,0 +1,7 @@
+flask>=3.0
+flask-cors>=4.0
+pandas>=2.0
+numpy>=1.26
+pyarrow>=14.0
+scikit-learn>=1.4
+joblib>=1.3

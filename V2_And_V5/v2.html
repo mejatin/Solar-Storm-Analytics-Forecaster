@@ -1,0 +1,706 @@
+<style>
+  :root {
+    --bg: #0A0C10;
+    --panel: #12151C;
+    --panel-2: #161A22;
+    --grid: #1E2330;
+    --hairline: #252B3A;
+    --text: #E7EAF0;
+    --text-dim: #8B94A5;
+    --text-faint: #4B5265;
+    --slow: #E8A33D;
+    --fast: #43D9C8;
+    --cme: #C65FE8;
+    --danger: #FF5B54;
+    --calm: #4F8CFF;
+    --mono: 'JetBrains Mono', monospace;
+    --sans: 'Space Grotesk', sans-serif;
+  }
+  
+  * { box-sizing: border-box; }
+  
+  html, body {
+    margin: 0; padding: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  #psx-root {
+    display: grid;
+    grid-template-columns: 1fr 280px;
+    gap: 20px;
+    background: var(--bg);
+    padding: 20px;
+    min-height: 600px;
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+  
+  @media (max-width: 840px) {
+    #psx-root { grid-template-columns: 1fr; }
+  }
+
+  /* Header */
+  .psx-header {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--hairline);
+    padding-bottom: 12px;
+    margin-bottom: 4px;
+  }
+  .psx-title {
+    font-family: var(--sans);
+    font-size: 16px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    color: var(--text);
+  }
+  .psx-title span {
+    color: var(--fast);
+    font-family: var(--mono);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-right: 8px;
+    padding: 2px 6px;
+    background: rgba(67, 217, 200, 0.1);
+    border-radius: 4px;
+  }
+  .psx-sub {
+    font-size: 12px;
+    color: var(--text-faint);
+    font-family: var(--mono);
+  }
+
+  /* Plot Container */
+  .psx-plot-wrap {
+    background: var(--bg);
+    border: 1px solid var(--hairline);
+    border-radius: 6px;
+    position: relative;
+    overflow: hidden;
+    box-shadow: inset 0 0 40px rgba(0,0,0,0.2);
+  }
+  .psx-plot-wrap svg { display: block; width: 100%; height: auto; }
+
+  /* D3 Plot Elements */
+  .axis text { fill: var(--text-dim); font-family: var(--mono); font-size: 10px; }
+  .axis path { display: none; } /* Modern scientific clean axes */
+  .axis line { stroke: var(--hairline); }
+  .axis-label { fill: var(--text); font-family: var(--sans); font-size: 12px; font-weight: 500; letter-spacing: 0.02em; }
+  
+  .gridline { stroke: var(--grid); stroke-width: 1; stroke-dasharray: 2 4; }
+
+  .psx-point {
+    cursor: crosshair;
+    transition: opacity 150ms ease;
+    mix-blend-mode: screen; /* Crucial for density visualization */
+  }
+  .psx-point.dim { opacity: 0.06; mix-blend-mode: normal; }
+  .psx-point.picked { stroke: #FFF; stroke-width: 0.5px; opacity: 1; mix-blend-mode: screen; }
+
+  .lasso-path {
+    fill: rgba(67, 217, 200, 0.05);
+    stroke: var(--fast);
+    stroke-width: 1.5px;
+    stroke-dasharray: 4 4;
+  }
+
+  .cluster-ellipse {
+    fill-opacity: 0.04;
+    stroke-width: 1.5px;
+    stroke-dasharray: 4 4;
+    opacity: 0.7;
+    transition: opacity 200ms ease;
+  }
+  .cluster-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .crosshair line { stroke: var(--text-faint); stroke-width: 1px; stroke-dasharray: 2 4; }
+  .crosshair-readout {
+    font-family: var(--mono);
+    font-size: 10px;
+    fill: var(--text-dim);
+    paint-order: stroke;
+    stroke: var(--bg);
+    stroke-width: 3px;
+  }
+
+  /* Tooltip Grid Layout */
+  .tooltip {
+    position: absolute;
+    pointer-events: none;
+    background: rgba(18, 21, 28, 0.95);
+    backdrop-filter: blur(4px);
+    border: 1px solid var(--hairline);
+    border-radius: 6px;
+    padding: 10px 14px;
+    box-shadow: 0 12px 32px rgba(0,0,0,0.5);
+    opacity: 0;
+    transition: opacity 100ms ease;
+    z-index: 10;
+  }
+  .tt-grid {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    column-gap: 16px;
+    row-gap: 4px;
+    font-family: var(--mono);
+    font-size: 11px;
+  }
+  .tt-label { color: var(--text-dim); }
+  .tt-val { color: var(--text); text-align: right; font-weight: 500; }
+  .tt-val.warn { color: var(--danger); font-weight: 700; }
+  .tt-divider { grid-column: 1 / -1; height: 1px; background: var(--hairline); margin: 4px 0; }
+
+  /* Sidebar */
+  .psx-side { display: flex; flex-direction: column; gap: 16px; }
+
+  .psx-card {
+    background: var(--panel);
+    border: 1px solid var(--hairline);
+    border-radius: 6px;
+    padding: 16px;
+  }
+  .psx-card h4 {
+    margin: 0 0 12px 0;
+    font-family: var(--sans);
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--text);
+  }
+
+  .var-btns { display: flex; gap: 6px; background: var(--panel-2); padding: 4px; border-radius: 6px; border: 1px solid var(--hairline); }
+  .var-btn {
+    flex: 1;
+    background: transparent;
+    border: none;
+    color: var(--text-dim);
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 500;
+    padding: 6px 0;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 120ms ease;
+  }
+  .var-btn:hover { color: var(--text); }
+  .var-btn.active {
+    background: var(--panel);
+    color: var(--fast);
+    box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+  }
+
+  .legend-bar { height: 6px; border-radius: 3px; margin: 14px 0 6px 0; }
+  .legend-labels {
+    display: flex;
+    justify-content: space-between;
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-dim);
+  }
+
+  .stat-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 6px 0;
+    border-bottom: 1px solid var(--panel-2);
+    font-family: var(--mono);
+    font-size: 11px;
+  }
+  .stat-row:last-child { border-bottom: none; }
+  .stat-row .label { color: var(--text-dim); }
+  .stat-row .value { color: var(--text); font-weight: 500; }
+  .stat-row .value.warn { color: var(--danger); }
+
+  .cluster-legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: var(--sans);
+    font-size: 12px;
+    color: var(--text-dim);
+    padding: 4px 0;
+  }
+  .swatch { width: 10px; height: 10px; border-radius: 2px; flex: none; }
+
+  .psx-btn {
+    width: 100%;
+    background: var(--panel-2);
+    border: 1px solid var(--hairline);
+    color: var(--text);
+    font-family: var(--sans);
+    font-weight: 500;
+    font-size: 12px;
+    padding: 10px 0;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 120ms ease;
+  }
+  .psx-btn:hover { background: var(--hairline); }
+
+  .toggle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-family: var(--sans);
+    font-size: 12px;
+    color: var(--text-dim);
+  }
+  .toggle {
+    width: 32px; height: 18px;
+    background: var(--panel-2);
+    border: 1px solid var(--hairline);
+    border-radius: 9px;
+    position: relative;
+    cursor: pointer;
+  }
+  .toggle::after {
+    content: '';
+    position: absolute;
+    top: 2px; left: 2px;
+    width: 12px; height: 12px;
+    border-radius: 50%;
+    background: var(--text-faint);
+    transition: transform 150ms cubic-bezier(0.4, 0, 0.2, 1), background 150ms ease;
+  }
+  .toggle.on { border-color: var(--fast); }
+  .toggle.on::after { transform: translateX(14px); background: var(--fast); }
+</style>
+<div id="psx-root">
+  <div class="psx-header">
+    <div class="psx-title"><span>V2</span> Phase Space Explorer</div>
+    <div class="psx-sub" id="psx-count">— points</div>
+  </div>
+
+  <div class="psx-plot-wrap" id="psx-plot-wrap">
+    <!-- SVG rendered here by D3 -->
+  </div>
+
+  <div class="psx-side">
+    <div class="psx-card">
+      <h4>Color Mapping</h4>
+      <div class="var-btns" id="var-btns">
+        <button class="var-btn active" data-var="B">|B|</button>
+        <button class="var-btn" data-var="Bz">Bz</button>
+        <button class="var-btn" data-var="Kp">Kp</button>
+      </div>
+      <div class="legend-bar" id="legend-bar"></div>
+      <div class="legend-labels"><span id="legend-min">—</span><span id="legend-max">—</span></div>
+    </div>
+
+    <div class="psx-card">
+      <h4>Regime Overlay</h4>
+      <div class="toggle-row" style="margin-bottom:12px;">
+        <span>Show cluster zones</span>
+        <div class="toggle on" id="toggle-clusters"></div>
+      </div>
+      <div class="cluster-legend-item"><span class="swatch" style="background:var(--slow)"></span>Slow stream</div>
+      <div class="cluster-legend-item"><span class="swatch" style="background:var(--fast)"></span>Fast stream</div>
+      <div class="cluster-legend-item"><span class="swatch" style="background:var(--cme)"></span>CME ejecta</div>
+    </div>
+
+    <div class="psx-card" style="flex:1; display:flex; flex-direction:column;">
+      <h4>Selection Stats</h4>
+      <div id="stat-block" style="flex:1; margin-bottom:16px;">
+        <div class="stat-row"><span class="label">Points</span><span class="value" id="s-count">0 / 0</span></div>
+        <div class="stat-row"><span class="label">Mean v</span><span class="value" id="s-v">—</span></div>
+        <div class="stat-row"><span class="label">Mean n</span><span class="value" id="s-n">—</span></div>
+        <div class="stat-row"><span class="label">Mean |B|</span><span class="value" id="s-b">—</span></div>
+        <div class="stat-row"><span class="label">Mean Bz</span><span class="value" id="s-bz">—</span></div>
+        <div class="stat-row"><span class="label">Storm-assoc.</span><span class="value" id="s-storm">—</span></div>
+      </div>
+      <button class="psx-btn" id="clear-lasso">Clear Selection</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+
+  // ---------- 1. Synthetic OMNI-like data (placeholder) ----------
+  function randn(mean, sd){
+    let u = 0, v = 0;
+    while(u === 0) u = Math.random();
+    while(v === 0) v = Math.random();
+    return mean + sd * Math.sqrt(-2*Math.log(u)) * Math.cos(2*Math.PI*v);
+  }
+  function clamp(x, lo, hi){ return Math.max(lo, Math.min(hi, x)); }
+
+  function generateSyntheticData(nTotal){
+    const start = new Date('2024-09-01T00:00:00Z');
+    const rows = [];
+    for(let i=0;i<nTotal;i++){
+      const roll = Math.random();
+      let regime, v, n, B, bz;
+      if(roll < 0.50){
+        regime = 'slow';
+        v  = randn(380, 40);
+        n  = clamp(randn(8, 3), 0.6, 30);
+        B  = clamp(randn(5, 1.6), 0.5, 15);
+        bz = randn(0, 2.2);
+      } else if(roll < 0.85){
+        regime = 'fast';
+        v  = randn(650, 55);
+        n  = clamp(randn(3, 1.2), 0.3, 12);
+        B  = clamp(randn(6, 2.0), 0.5, 16);
+        bz = randn(0, 2.6);
+      } else {
+        regime = 'cme';
+        v  = randn(560, 130);
+        n  = clamp(randn(15, 6), 1, 45);
+        B  = clamp(randn(16, 6), 3, 40);
+        bz = Math.random() < 0.55 ? -Math.abs(randn(9, 6)) : randn(0, 4);
+      }
+      v = clamp(v, 250, 950);
+      const pdyn = 0.5 * 1.6726e-6 * n * v * v; 
+      const kp = clamp(Math.round(Math.max(0, -bz)*0.35 + (v-380)/140 + randn(0,0.6)), 0, 9);
+      const dst = clamp(-(Math.max(0,-bz)*7 + Math.max(0, v-500)*0.12 + Math.random()*8), -220, 15);
+      rows.push({
+        t: new Date(start.getTime() + i*3600*1000),
+        v: +v.toFixed(1),
+        n: +n.toFixed(2),
+        B: +B.toFixed(1),
+        Bz: +bz.toFixed(1),
+        Kp: kp,
+        Dst: +dst.toFixed(1),
+        Pdyn: +pdyn.toFixed(3),
+        regime
+      });
+    }
+    return rows;
+  }
+
+  const REGIME_COLOR = { slow: 'var(--slow)', fast: 'var(--fast)', cme: 'var(--cme)' };
+  const REGIME_HEX   = { slow: '#E8A33D', fast: '#43D9C8', cme: '#C65FE8' };
+
+  // ---------- 2. Color scales ----------
+  function colorScaleFor(key, data){
+    if(key === 'Bz'){
+      const ext = d3.extent(data, d => d.Bz);
+      const lo = Math.min(ext[0], -15), hi = Math.max(ext[1], 10);
+      return d3.scaleLinear().domain([lo, 0, hi]).range(['#FF5B54', '#4B5265', '#4F8CFF']).clamp(true);
+    }
+    if(key === 'Kp'){
+      return d3.scaleLinear().domain([0, 4, 9]).range(['#4F8CFF', '#E8A33D', '#FF5B54']).clamp(true);
+    }
+    const ext = d3.extent(data, d => d.B);
+    return d3.scaleLinear().domain([ext[0], (ext[0]+ext[1])/2, ext[1]])
+      .range(['#1E2330', '#43D9C8', '#C65FE8']).clamp(true);
+  }
+
+  function legendMeta(key, data){
+    if(key === 'Bz') return { lo: 'Southward (Storm)', hi: 'Northward', grad: 'linear-gradient(to right, #FF5B54, #4B5265, #4F8CFF)' };
+    if(key === 'Kp') return { lo: '0 (Quiet)', hi: '9 (Severe)', grad: 'linear-gradient(to right, #4F8CFF, #E8A33D, #FF5B54)' };
+    const ext = d3.extent(data, d => d.B);
+    return { lo: ext[0].toFixed(1) + ' nT', hi: ext[1].toFixed(1) + ' nT', grad: 'linear-gradient(to right, #1E2330, #43D9C8, #C65FE8)' };
+  }
+
+  // ---------- 3. 2x2 covariance ellipse ----------
+  function ellipseFor(points, xAcc, yAcc){
+    const n = points.length;
+    const mx = d3.mean(points, xAcc), my = d3.mean(points, yAcc);
+    let sxx=0, syy=0, sxy=0;
+    points.forEach(p => {
+      const dx = xAcc(p)-mx, dy = yAcc(p)-my;
+      sxx += dx*dx; syy += dy*dy; sxy += dx*dy;
+    });
+    sxx/=n; syy/=n; sxy/=n;
+    const tr = sxx+syy, det = sxx*syy - sxy*sxy;
+    const l1 = tr/2 + Math.sqrt(Math.max(0, tr*tr/4 - det));
+    const l2 = tr/2 - Math.sqrt(Math.max(0, tr*tr/4 - det));
+    const angle = Math.atan2(l1 - sxx, sxy) || 0;
+    return { mx, my, r1: Math.sqrt(Math.max(l1,0)), r2: Math.sqrt(Math.max(l2,0)), angle };
+  }
+
+  // ---------- 4. Main render ----------
+  function renderPhaseSpace(data){
+    const wrap = d3.select('#psx-plot-wrap');
+    const width = wrap.node().clientWidth || 700;
+    const height = 560;
+    const margin = { top: 30, right: 30, bottom: 60, left: 60 };
+    const innerW = width - margin.left - margin.right;
+    const innerH = height - margin.top - margin.bottom;
+
+    const svg = wrap.append('svg')
+      .attr('viewBox', `0 0 ${width} ${height}`)
+      .attr('preserveAspectRatio', 'xMidYMid meet');
+
+    const g = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
+
+    const x = d3.scaleLinear().domain(d3.extent(data, d=>d.v)).nice().range([0, innerW]);
+    const y = d3.scaleLog().domain(d3.extent(data, d=>Math.max(0.3,d.n))).nice().range([innerH, 0]);
+
+    // Background Grid
+    g.append('g').attr('class','gridlines')
+      .selectAll('line.x').data(x.ticks(8)).join('line')
+      .attr('class','gridline')
+      .attr('x1', d=>x(d)).attr('x2', d=>x(d)).attr('y1',0).attr('y2',innerH);
+    g.append('g').attr('class','gridlines')
+      .selectAll('line.y').data(y.ticks(6)).join('line')
+      .attr('class','gridline')
+      .attr('x1',0).attr('x2',innerW).attr('y1', d=>y(d)).attr('y2', d=>y(d));
+
+    // Axes
+    const xAxis = g.append('g').attr('class','axis')
+      .attr('transform', `translate(0,${innerH})`)
+      .call(d3.axisBottom(x).ticks(8).tickSizeOuter(0));
+    const yAxis = g.append('g').attr('class','axis')
+      .call(d3.axisLeft(y).ticks(6, '~s').tickSizeOuter(0));
+    
+    // Clean domain paths
+    xAxis.select('.domain').remove();
+    yAxis.select('.domain').remove();
+
+    g.append('text').attr('class','axis-label')
+      .attr('x', innerW/2).attr('y', innerH + 46).attr('text-anchor','middle')
+      .text('Solar Wind Speed, v (km/s)');
+    g.append('text').attr('class','axis-label')
+      .attr('transform', `translate(-42,${innerH/2}) rotate(-90)`)
+      .attr('text-anchor','middle')
+      .text('Proton Density, n (cm⁻³, log)');
+
+    // Clusters Layer
+    const clusterLayer = g.append('g').attr('class','cluster-layer');
+    function drawClusters(){
+      clusterLayer.selectAll('*').remove();
+      ['slow','fast','cme'].forEach(reg => {
+        const pts = data.filter(d => d.regime === reg);
+        if(pts.length < 5) return;
+        const e2 = ellipseFor(pts, d=>x(d.v), d=>y(d.n));
+        
+        clusterLayer.append('ellipse')
+          .attr('class','cluster-ellipse')
+          .attr('cx', e2.mx).attr('cy', e2.my)
+          .attr('rx', e2.r1*2.2).attr('ry', e2.r2*2.2)
+          .attr('transform', `rotate(${e2.angle*180/Math.PI}, ${e2.mx}, ${e2.my})`)
+          .attr('stroke', REGIME_HEX[reg])
+          .attr('fill', REGIME_HEX[reg]);
+
+        clusterLayer.append('text')
+          .attr('class','cluster-label')
+          .attr('x', e2.mx).attr('y', e2.my - e2.r2*2.2 - 8)
+          .attr('text-anchor','middle')
+          .attr('fill', REGIME_HEX[reg])
+          .style('paint-order', 'stroke')
+          .style('stroke', 'var(--bg)')
+          .style('stroke-width', '4px')
+          .text(reg === 'cme' ? 'CME EJECTA' : reg.toUpperCase()+' STREAM');
+      });
+    }
+    drawClusters();
+
+    // Points Layer
+    let colorKey = 'B';
+    let colorScale = colorScaleFor(colorKey, data);
+
+    const pointsLayer = g.append('g').attr('class','points-layer');
+    const circles = pointsLayer.selectAll('circle')
+      .data(data)
+      .join('circle')
+      .attr('class','psx-point')
+      .attr('cx', d=>x(d.v))
+      .attr('cy', d=>y(Math.max(0.3,d.n)))
+      .attr('r', 1.8) // Reduced size for better density communication
+      .attr('fill', d=>colorScale(d[colorKey]))
+      .attr('fill-opacity', 0.6);
+
+    function updateColors(){
+      colorScale = colorScaleFor(colorKey, data);
+      circles.attr('fill', d=>colorScale(d[colorKey]));
+      const meta = legendMeta(colorKey, data);
+      d3.select('#legend-bar').style('background', meta.grad);
+      d3.select('#legend-min').text(meta.lo);
+      d3.select('#legend-max').text(meta.hi);
+    }
+    updateColors();
+
+    d3.select('#psx-count').html(`${d3.format(",")(data.length)} points <span style="color:var(--text-faint)">· Hourly OMNI Resampling (1995–2025)</span>`);
+
+    // Interactive Annotations
+    const tooltip = wrap.append('div').attr('class','tooltip');
+    const crosshair = g.append('g').attr('class','crosshair').style('display','none');
+    crosshair.append('line').attr('class','h');
+    crosshair.append('line').attr('class','v');
+    const xReadout = crosshair.append('text').attr('class','crosshair-readout').attr('y', innerH + 16).attr('text-anchor','middle');
+    const yReadout = crosshair.append('text').attr('class','crosshair-readout').attr('x', -8).attr('text-anchor','end').attr('alignment-baseline','middle');
+
+    circles
+      .on('mousemove', function(event, d){
+        const [mx, my] = d3.pointer(event, wrap.node());
+        const stormFmt = d.Dst < -50 ? `<span class="tt-val warn">${d.Dst} nT (Storm)</span>` : `${d.Dst} nT`;
+        
+        tooltip
+          .style('left', (mx+16)+'px').style('top', (my-16)+'px')
+          .style('opacity', 1)
+          .html(`
+            <div class="tt-grid">
+              <div class="tt-label">Time</div><div class="tt-val">${d3.timeFormat('%Y-%m-%d %H:%M')(d.t)}</div>
+              <div class="tt-divider"></div>
+              <div class="tt-label">Speed (v)</div><div class="tt-val">${d.v} km/s</div>
+              <div class="tt-label">Density (n)</div><div class="tt-val">${d.n} cm⁻³</div>
+              <div class="tt-label">Total B</div><div class="tt-val">${d.B} nT</div>
+              <div class="tt-label">Bz</div><div class="tt-val">${d.Bz} nT</div>
+              <div class="tt-divider"></div>
+              <div class="tt-label">Kp Index</div><div class="tt-val">${d.Kp}</div>
+              <div class="tt-label">Dst</div><div class="tt-val">${stormFmt}</div>
+            </div>
+          `);
+      })
+      .on('mouseleave', () => tooltip.style('opacity', 0));
+
+    // ---------- 5. Lasso selection ----------
+    let lassoPts = [];
+    let dragging = false;
+    const lassoPath = g.append('path').attr('class','lasso-path').style('display','none');
+
+    function pointInPolygon(pt, poly){
+      let inside = false;
+      for(let i=0, j=poly.length-1; i<poly.length; j=i++){
+        const xi=poly[i][0], yi=poly[i][1], xj=poly[j][0], yj=poly[j][1];
+        if(((yi>pt[1]) !== (yj>pt[1])) && (pt[0] < (xj-xi)*(pt[1]-yi)/(yj-yi)+xi)){
+          inside = !inside;
+        }
+      }
+      return inside;
+    }
+
+    function applySelection(selectedData){
+      const selSet = new Set(selectedData);
+      circles
+        .classed('dim', d => selectedData.length>0 && !selSet.has(d))
+        .classed('picked', d => selSet.has(d));
+
+      const n = selectedData.length;
+      d3.select('#s-count').text(`${n} / ${data.length}`);
+      if(n === 0){
+        d3.select('#s-v').text('—'); d3.select('#s-n').text('—');
+        d3.select('#s-b').text('—'); d3.select('#s-bz').text('—');
+        d3.select('#s-storm').text('—');
+        return;
+      }
+      d3.select('#s-v').text(d3.mean(selectedData, d=>d.v).toFixed(1)+' km/s');
+      d3.select('#s-n').text(d3.mean(selectedData, d=>d.n).toFixed(2)+' cm⁻³');
+      d3.select('#s-b').text(d3.mean(selectedData, d=>d.B).toFixed(1)+' nT');
+      const meanBz = d3.mean(selectedData, d=>d.Bz);
+      const bzEl = d3.select('#s-bz').text(meanBz.toFixed(1)+' nT');
+      bzEl.classed('warn', meanBz < -3);
+      const stormFrac = selectedData.filter(d=>d.Dst < -50).length / n;
+      const stormEl = d3.select('#s-storm').text((stormFrac*100).toFixed(0)+'%');
+      stormEl.classed('warn', stormFrac > 0.15);
+
+      window.dispatchEvent(new CustomEvent('psx:selection', { detail: { points: selectedData, timeRange: d3.extent(selectedData, d => d.t) } }));
+    }
+
+    const dragBehavior = d3.drag()
+      .on('start', (event) => {
+        dragging = true;
+        lassoPts = [d3.pointer(event, g.node())];
+        lassoPath.style('display', null);
+        crosshair.style('display', 'none');
+      })
+      .on('drag', (event) => {
+        lassoPts.push(d3.pointer(event, g.node()));
+        lassoPath.attr('d', 'M' + lassoPts.map(p=>p.join(',')).join('L') + 'Z');
+      })
+      .on('end', () => {
+        dragging = false;
+        if(lassoPts.length > 2){
+          const selected = data.filter(d => pointInPolygon([x(d.v), y(Math.max(0.3,d.n))], lassoPts));
+          applySelection(selected);
+        }
+      });
+
+    g.append('rect')
+      .attr('width', innerW).attr('height', innerH)
+      .attr('fill', 'transparent')
+      .style('cursor', 'crosshair')
+      .call(dragBehavior)
+      .on('mousemove', function(event){
+        if(dragging) return;
+        const [mx,my] = d3.pointer(event, g.node());
+        crosshair.style('display', null);
+        crosshair.select('.h').attr('x1',0).attr('x2',innerW).attr('y1',my).attr('y2',my);
+        crosshair.select('.v').attr('x1',mx).attr('x2',mx).attr('y1',0).attr('y2',innerH);
+        
+        // Data readout for precision tracking
+        xReadout.attr('x', mx).text(x.invert(mx).toFixed(0));
+        yReadout.attr('y', my).text(y.invert(my).toFixed(1));
+      })
+      .on('mouseleave', () => { if(!dragging) crosshair.style('display','none'); });
+
+    d3.select('#clear-lasso').on('click', () => {
+      lassoPts = [];
+      lassoPath.style('display','none').attr('d', null);
+      applySelection([]);
+    });
+
+    // ---------- Controls ----------
+    d3.selectAll('.var-btn').on('click', function(){
+      d3.selectAll('.var-btn').classed('active', false);
+      d3.select(this).classed('active', true);
+      colorKey = d3.select(this).attr('data-var');
+      updateColors();
+    });
+
+    let clustersOn = true;
+    d3.select('#toggle-clusters').on('click', function(){
+      clustersOn = !clustersOn;
+      d3.select(this).classed('on', clustersOn);
+      clusterLayer.transition().duration(200).style('opacity', clustersOn ? 1 : 0)
+        .on('end', function() { if(!clustersOn) d3.select(this).style('display', 'none'); })
+        .on('start', function() { if(clustersOn) d3.select(this).style('display', null); });
+    });
+  }
+
+  // ---------- 6. Boot ----------
+  const DATA_URL = 'omni_sample.json';
+
+  function loadRealData(){
+    const wrap = d3.select('#psx-plot-wrap');
+    wrap.append('div')
+      .attr('class', 'psx-loading')
+      .style('position','absolute').style('inset','0')
+      .style('display','flex').style('align-items','center').style('justify-content','center')
+      .style('font-family','var(--mono)').style('font-size','11px').style('color','var(--text-faint)')
+      .text('Loading OMNI data...');
+
+    fetch(DATA_URL)
+      .then(r => {
+        if(!r.ok) throw new Error(`${r.status} ${r.statusText}`);
+        return r.json();
+      })
+      .then(rows => {
+        const data = rows.map(d => ({ ...d, t: new Date(d.t) }));
+        wrap.select('.psx-loading').remove();
+        renderPhaseSpace(data);
+      })
+      .catch(err => {
+        console.warn('Failed to load real OMNI data, falling back to synthetic:', err);
+        wrap.select('.psx-loading')
+          .text('Dataset unavailable. Generating synthetic placeholder.')
+          .style('color', 'var(--slow)');
+        setTimeout(() => {
+          wrap.select('.psx-loading').remove();
+          renderPhaseSpace(generateSyntheticData(2500)); // Render 2500 for better demo density
+        }, 800);
+      });
+  }
+
+  loadRealData();
+
+  window.PhaseSpaceExplorer = { renderPhaseSpace, generateSyntheticData, loadRealData };
+
+})();
+</script>
