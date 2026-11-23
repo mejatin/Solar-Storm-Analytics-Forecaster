@@ -114,7 +114,7 @@ Everything above is about understanding storms that *already happened*. This par
 forward: **given what the solar wind is doing right now, how likely is a storm in the
 next 1, 3, or 6 hours?**
 
-### How it works, without the jargon
+### How it works
 
 Think of it like a weather forecast, but for space weather. The model looks at the
 current strength and direction of the solar wind's magnetic field, how fast and dense the
@@ -291,10 +291,3 @@ BigData-Project/
 - **Backend:** Flask, Flask-CORS, pandas
 - **Machine learning:** scikit-learn (Random Forest), joblib
 - **Data:** NASA OMNIWeb High Resolution dataset, 1995 onward
-
-## Full technical report
-
-The complete academic report — theoretical background on solar wind physics, the full
-data cleaning methodology, detailed panel-by-panel design rationale, and the full machine
-learning methodology and results (Appendix A) — is included as
-[`CS661_ProjectReport_Group21.pdf`](CS661_ProjectReport_Group21.pdf).
